@@ -1,7 +1,7 @@
 from django.urls import path, include
 from .views import (
     EventListCreateViewSet,
-    NewsListCreateViewSet,
+    ServicesListCreateViewSet,
     VacancyListCreateViewSet,
     ProjectListCreateViewSet,
     ContactCreateView,
@@ -28,7 +28,7 @@ schema_view = get_schema_view(
 
 router = DefaultRouter()
 router.register(r'events', EventListCreateViewSet, basename='events')
-router.register(r'news', NewsListCreateViewSet, basename='news')
+router.register(r'services', ServicesListCreateViewSet, basename='services')
 router.register(r'vacancies', VacancyListCreateViewSet, basename='vacancies')
 router.register(r'projects', ProjectListCreateViewSet, basename='projects')
 

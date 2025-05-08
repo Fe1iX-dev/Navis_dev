@@ -11,7 +11,7 @@ class Event(models.Model):
     def __str__(self):
         return self.title
 
-class News(models.Model):
+class Services(models.Model):
     title = models.CharField(max_length=200)
     content = models.TextField()
     image = models.ImageField(upload_to='news/', null=True, blank=True)

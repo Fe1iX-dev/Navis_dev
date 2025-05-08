@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, News, Vacancy, Project, Contact, Review
+from .models import Event, Services, Vacancy, Project, Contact, Review
 import os
 
 class EventSerializer(serializers.ModelSerializer):
@@ -7,9 +7,9 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = ['id', 'title', 'description', 'date', 'image', 'created_at']
 
-class NewsSerializer(serializers.ModelSerializer):
+class ServicesSerializer(serializers.ModelSerializer):
     class Meta:
-        model = News
+        model = Services
         fields = ['id', 'title', 'content', 'image', 'created_at']
 
 class VacancySerializer(serializers.ModelSerializer):
@@ -35,7 +35,6 @@ class ContactSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Files with .json, .py, or .sh extensions are not allowed.")
         return value
 
-    # Явно указываем, что file — это файл
     file = serializers.FileField(required=False, allow_empty_file=False)
 
 class ReviewSerializer(serializers.ModelSerializer):

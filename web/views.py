@@ -3,8 +3,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django_filters import FilterSet, filters
-from .models import Event, News, Vacancy, Project, Contact, Review
-from .serializers import EventSerializer, NewsSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer
+from .models import Event, Services, Vacancy, Project, Contact, Review
+from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer
 from .utils import send_telegram_notification
 import logging
 
@@ -21,9 +21,9 @@ class EventListCreateViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
     filterset_class = EventFilter
 
-class NewsListCreateViewSet(viewsets.ModelViewSet):
-    queryset = News.objects.all().order_by('created_at')
-    serializer_class = NewsSerializer
+class ServicesListCreateViewSet(viewsets.ModelViewSet):
+    queryset = Services.objects.all().order_by('created_at')
+    serializer_class = ServicesSerializer
 
 class VacancyListCreateViewSet(viewsets.ModelViewSet):
     queryset = Vacancy.objects.all().order_by('created_at')
