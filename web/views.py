@@ -1,9 +1,8 @@
-from rest_framework import generics, permissions, mixins
+from rest_framework import generics, permissions, mixins, viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django_filters import FilterSet, filters
-from django_filters.rest_framework import DjangoFilterBackend
 from .models import Event, News, Vacancy, Project, Contact, Review
 from .serializers import EventSerializer, NewsSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer
 from .utils import send_telegram_notification
@@ -13,25 +12,24 @@ logger = logging.getLogger(__name__)
 
 class EventFilter(FilterSet):
     date = filters.DateTimeFilter(field_name='date', lookup_expr='gte')
-
     class Meta:
         model = Event
         fields = ['date']
 
-class EventListCreateView(generics.ListCreateAPIView):
+class EventListCreateViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all().order_by('created_at')
     serializer_class = EventSerializer
     filterset_class = EventFilter
 
-class NewsListCreateView(generics.ListCreateAPIView):
+class NewsListCreateViewSet(viewsets.ModelViewSet):
     queryset = News.objects.all().order_by('created_at')
     serializer_class = NewsSerializer
 
-class VacancyListCreateView(generics.ListCreateAPIView):
+class VacancyListCreateViewSet(viewsets.ModelViewSet):
     queryset = Vacancy.objects.all().order_by('created_at')
     serializer_class = VacancySerializer
 
-class ProjectListCreateView(generics.ListCreateAPIView):
+class ProjectListCreateViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all().order_by('created_at')
     serializer_class = ProjectSerializer
 
