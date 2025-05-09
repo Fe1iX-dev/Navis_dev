@@ -1,3 +1,4 @@
+from requests import Response
 from rest_framework import generics, permissions, mixins, viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
@@ -7,6 +8,11 @@ from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeS
 from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer
 from .utils import send_telegram_notification
 import logging
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import AccessToken
+from datetime import timedelta
+from django.contrib.auth.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -16,22 +22,97 @@ class EventFilter(FilterSet):
         model = Event
         fields = ['date']
 
+
 class EventListCreateViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all().order_by('created_at')
     serializer_class = EventSerializer
     filterset_class = EventFilter
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
+
 class ServicesListCreateViewSet(viewsets.ModelViewSet):
     queryset = Services.objects.all().order_by('created_at')
     serializer_class = ServicesSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
+    @swagger_auto_schema(
+        operation_description="Получить детальную информацию об услуге и список других услуг",
+        responses={
+            200: openapi.Response(
+                description="Детали услуги и список других услуг",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'service': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description='Текущая услуга',
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                'content': openapi.Schema(type=openapi.TYPE_STRING),
+                                'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
+                                'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                            }
+                        ),
+                        'other_services': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            description='Список других услуг',
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'content': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
+                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                                }
+                            )
+                        )
+                    }
+                )
+            )
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        logger.info(f"Получен GET-запрос на /api/services/{kwargs['pk']}/")
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        other_services = Services.objects.exclude(id=instance.id).order_by('created_at')
+        other_serializer = self.get_serializer(other_services, many=True)
+        return Response({
+            'service': serializer.data,
+            'other_services': other_serializer.data
+        })
+
 
 class VacancyListCreateViewSet(viewsets.ModelViewSet):
     queryset = Vacancy.objects.all().order_by('created_at')
     serializer_class = VacancySerializer
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
+
 class ProjectListCreateViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all().order_by('created_at')
     serializer_class = ProjectSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
 
 class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
     queryset = Contact.objects.all().order_by('created_at')
@@ -78,6 +159,11 @@ class YouTubeShortListCreateViewSet(viewsets.ModelViewSet):
     serializer_class = YouTubeShortSerializer
     parser_classes = [MultiPartParser, FormParser]
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
     @swagger_auto_schema(
         operation_description="Создать новый YouTube Short с миниатюрой",
         manual_parameters=[
@@ -102,3 +188,29 @@ class ReviewListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+class CustomTokenObtainView(APIView):
+    @swagger_auto_schema(
+        operation_description="Получить Access-токен с настраиваемым временем жизни",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING, description='Имя пользователя'),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Пароль'),
+                'lifetime_hours': openapi.Schema(type=openapi.TYPE_INTEGER, description='Время жизни токена в часах', default=24),
+            },
+            required=['username', 'password']
+        ),
+        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={'access': openapi.Schema(type=openapi.TYPE_STRING)})}
+    )
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        lifetime_hours = int(request.data.get('lifetime_hours', 24))
+
+        user = User.objects.filter(username=username).first()
+        if user and user.check_password(password):
+            token = AccessToken.for_user(user)
+            token.set_exp(lifetime=timedelta(hours=lifetime_hours))
+            return Response({'access': str(token)})
+        return Response({'error': 'Invalid credentials'}, status=400)
