@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, Services, Vacancy, Project, Contact, Review
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort
 import os
 
 class EventSerializer(serializers.ModelSerializer):
@@ -25,7 +25,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ['id', 'name', 'email', 'message', 'file', 'created_at']
+        fields = ['id', 'name', 'email', 'message', 'file', 'phone', 'created_at']
 
     def validate_file(self, value):
         if value:
@@ -42,3 +42,9 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'author', 'text', 'rating', 'created_at']
+
+
+class YouTubeShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = YouTubeShort
+        fields = ['id', 'title', 'video_url', 'thumbnail', 'created_at']

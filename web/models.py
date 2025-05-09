@@ -1,5 +1,36 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+
+def validate_phone(value):
+    if value and not value.startswith('+996'):
+        raise ValidationError('Номер должен начинаться с +996')
+
+class Contact(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    message = models.TextField()
+    file = models.FileField(upload_to='contacts/', null=True, blank=True)
+    phone = models.CharField(max_length=13, validators=[validate_phone], null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.phone and not self.phone.startswith('+996'):
+            self.phone = '+996' + self.phone.lstrip('+')
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Message from {self.name}"
+
+class YouTubeShort(models.Model):
+    title = models.CharField(max_length=200)
+    video_url = models.URLField()
+    thumbnail = models.ImageField(upload_to='youtube_shorts/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
 
 class Event(models.Model):
     title = models.CharField(max_length=200)
@@ -14,7 +45,7 @@ class Event(models.Model):
 class Services(models.Model):
     title = models.CharField(max_length=200)
     content = models.TextField()
-    image = models.ImageField(upload_to='news/', null=True, blank=True)
+    image = models.ImageField(upload_to='services/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -38,15 +69,6 @@ class Project(models.Model):
     def __str__(self):
         return self.title
 
-class Contact(models.Model):
-    name = models.CharField(max_length=100)
-    email = models.EmailField()
-    message = models.TextField()
-    file = models.FileField(upload_to='contacts/', null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Message from {self.name}"
 
 class Review(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)

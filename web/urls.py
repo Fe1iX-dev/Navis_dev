@@ -6,6 +6,7 @@ from .views import (
     ProjectListCreateViewSet,
     ContactCreateView,
     ReviewListCreateView,
+    YouTubeShortListCreateViewSet,
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_yasg.views import get_schema_view
@@ -31,6 +32,7 @@ router.register(r'events', EventListCreateViewSet, basename='events')
 router.register(r'services', ServicesListCreateViewSet, basename='services')
 router.register(r'vacancies', VacancyListCreateViewSet, basename='vacancies')
 router.register(r'projects', ProjectListCreateViewSet, basename='projects')
+router.register(r'youtube-shorts', YouTubeShortListCreateViewSet, basename='youtube-shorts')
 
 
 
