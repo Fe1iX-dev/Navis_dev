@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db.models import CharField
+
 
 def validate_phone(value):
     if value and not value.startswith('+996'):
@@ -35,17 +37,17 @@ class YouTubeShort(models.Model):
 class Event(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
-    date = models.DateTimeField()
     image = models.ImageField(upload_to='events/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
 
+
 class Services(models.Model):
     title = models.CharField(max_length=200)
     content = models.TextField()
-    image = models.ImageField(upload_to='services/', null=True, blank=True)
+    image = models.ImageField(upload_to='services/', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -78,3 +80,12 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review by {self.author.username}"
+
+class About(models.Model):
+    title = models.CharField()
+    image = models.ImageField(upload_to='About/', null=True, blank=True)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title

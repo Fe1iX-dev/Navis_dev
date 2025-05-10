@@ -1,4 +1,5 @@
 from django.urls import path, include
+from .serializers import AboutSerializer
 from .views import (
     EventListCreateViewSet,
     ServicesListCreateViewSet,
@@ -8,6 +9,7 @@ from .views import (
     ReviewListCreateView,
     YouTubeShortListCreateViewSet,
     CustomTokenObtainView,
+    AboutViewSet,
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_yasg.views import get_schema_view
@@ -34,7 +36,9 @@ router.register(r'events', EventListCreateViewSet, basename='events')
 router.register(r'services', ServicesListCreateViewSet, basename='services')
 router.register(r'vacancies', VacancyListCreateViewSet, basename='vacancies')
 router.register(r'projects', ProjectListCreateViewSet, basename='projects')
-router.register(r'youtube-shorts', YouTubeShortListCreateViewSet, basename='youtube-shorts')
+router.register(r'youtube-shorts', YouTubeShortListCreateViewSet, basename='youtube-shorts'),
+router.register(r'about', AboutViewSet, basename='about')
+
 
 
 urlpatterns = [
@@ -46,5 +50,4 @@ urlpatterns = [
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('custom-token/', CustomTokenObtainView.as_view(), name='custom_token'),
-
 ]

@@ -4,8 +4,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django_filters import FilterSet, filters
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort
-from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About
+from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer
 from .utils import send_telegram_notification
 import logging
 from rest_framework.views import APIView
@@ -27,11 +27,71 @@ class EventListCreateViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all().order_by('created_at')
     serializer_class = EventSerializer
     filterset_class = EventFilter
+    parser_classes = (MultiPartParser, FormParser)
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         return [permissions.IsAdminUser()]
+
+    @swagger_auto_schema(
+        request_body=EventSerializer,
+        responses={201: EventSerializer()}
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_description="Получить информацию о мероприятии и список других мероприятий",
+        responses={
+            200: openapi.Response(
+                description="Детали Мероприятия и список других Мероприятий",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'service': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description='Текущее мероприятие',
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                'description': openapi.Schema(type=openapi.TYPE_STRING),
+                                'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI,
+                                                        nullable=True),
+                                'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                            }
+                        ),
+                        'other_events': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            description='Список других мероприятий',
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'description': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI,
+                                                            nullable=True),
+                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING,
+                                                                 format=openapi.FORMAT_DATETIME),
+                                }
+                            )
+                        )
+                    }
+                )
+            )
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        logger.info(f"Получен GET-запрос на /api/events/{kwargs['pk']}/")
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        other_events = Event.objects.exclude(id=instance.id).order_by('created_at')
+        other_serializer = self.get_serializer(other_events, many=True)
+        return Response({
+            'event': serializer.data,
+            'other_events': other_serializer.data
+        })
 
 
 class ServicesListCreateViewSet(viewsets.ModelViewSet):
@@ -97,11 +157,62 @@ class ServicesListCreateViewSet(viewsets.ModelViewSet):
 class VacancyListCreateViewSet(viewsets.ModelViewSet):
     queryset = Vacancy.objects.all().order_by('created_at')
     serializer_class = VacancySerializer
+    parser_classes = [MultiPartParser, FormParser]
+
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         return [permissions.IsAdminUser()]
+
+    @swagger_auto_schema(
+        operation_description="Получить детальную информацию о вакансиях и список других вакансий",
+        responses={
+            200: openapi.Response(
+                description="Детали вакансии и список других вакансий",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'service': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            description='Текущая вакансия',
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                'description': openapi.Schema(type=openapi.TYPE_STRING),
+                                'requirements': openapi.Schema(type=openapi.TYPE_STRING),
+                                'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                            }
+                        ),
+                        'other_services': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            description='Список других вакансий',
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    'title': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'description': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'requirements': openapi.Schema(type=openapi.TYPE_STRING),
+                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                                }
+                            )
+                        )
+                    }
+                )
+            )
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        logger.info(f"Получен GET-запрос на /api/vacancies/{kwargs['pk']}/")
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        other_vacancies = Vacancy.objects.exclude(id=instance.id).order_by('created_at')
+        other_serializer = self.get_serializer(other_vacancies, many=True)
+        return Response({
+            'service': serializer.data,
+            'other_vacancies': other_serializer.data
+        })
 
 
 class ProjectListCreateViewSet(viewsets.ModelViewSet):
@@ -214,3 +325,14 @@ class CustomTokenObtainView(APIView):
             token.set_exp(lifetime=timedelta(hours=lifetime_hours))
             return Response({'access': str(token)})
         return Response({'error': 'Invalid credentials'}, status=400)
+
+
+class AboutViewSet(viewsets.ModelViewSet):
+    queryset = About.objects.all().order_by('created_at')
+    serializer_class = AboutSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]

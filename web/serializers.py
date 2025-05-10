@@ -1,11 +1,11 @@
 from rest_framework import serializers
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About
 import os
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ['id', 'title', 'description', 'date', 'image', 'created_at']
+        fields = ['title', 'description', 'image']
 
 class ServicesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -48,3 +48,8 @@ class YouTubeShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = YouTubeShort
         fields = ['id', 'title', 'video_url', 'thumbnail', 'created_at']
+
+class AboutSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = About
+        fields = ['id' , 'title', 'image', 'description', 'created_at']

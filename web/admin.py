@@ -1,19 +1,21 @@
 from django.contrib import admin
-from .models import (
-    Contact,
-    Event,
-    Services,
-    Vacancy,
-    Project,
-    Review
-)
+from .models import *
+#     Contact,
+#     Event,
+#     Services,
+#     Vacancy,
+#     Project,
+#     Review,
+#     YouTubeShort,
+
+# )
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
     list_display = ('id' ,'name', 'email', 'message', 'file', 'created_at')
 #
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ('id' , 'title', 'description', 'date', 'image', 'created_at')
+    list_display = ('id' , 'title', 'description', 'image', 'created_at')
 
 @admin.register(Services)
 class ServicesAdmin(admin.ModelAdmin):
@@ -30,3 +32,11 @@ class ProjectAdmin(admin.ModelAdmin):
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ('id' , 'author', 'text', 'rating', 'created_at')
+
+@admin.register(YouTubeShort)
+class YouTubeShortAdmin(admin.ModelAdmin):
+    list_display = ('id' , 'title', 'video_url', 'created_at')
+
+@admin.register(About)
+class AboutAdmin(admin.ModelAdmin):
+    list_display = ('id' , 'title', 'description', 'image', 'created_at')
