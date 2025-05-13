@@ -1,11 +1,10 @@
-from requests import Response
 from rest_framework import generics, permissions, mixins, viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django_filters import FilterSet, filters
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About
-from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery
+from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer
 from .utils import send_telegram_notification
 import logging
 from rest_framework.views import APIView
@@ -21,7 +20,6 @@ class EventFilter(FilterSet):
     class Meta:
         model = Event
         fields = ['date']
-
 
 class EventListCreateViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all().order_by('created_at')
@@ -45,19 +43,18 @@ class EventListCreateViewSet(viewsets.ModelViewSet):
         operation_description="Получить информацию о мероприятии и список других мероприятий",
         responses={
             200: openapi.Response(
-                description="Детали Мероприятия и список других Мероприятий",
+                description="Детали мероприятия и список других мероприятий",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'service': openapi.Schema(
+                        'event': openapi.Schema(
                             type=openapi.TYPE_OBJECT,
                             description='Текущее мероприятие',
                             properties={
                                 'id': openapi.Schema(type=openapi.TYPE_INTEGER),
                                 'title': openapi.Schema(type=openapi.TYPE_STRING),
                                 'description': openapi.Schema(type=openapi.TYPE_STRING),
-                                'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI,
-                                                        nullable=True),
+                                'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
                                 'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                             }
                         ),
@@ -70,10 +67,8 @@ class EventListCreateViewSet(viewsets.ModelViewSet):
                                     'id': openapi.Schema(type=openapi.TYPE_INTEGER),
                                     'title': openapi.Schema(type=openapi.TYPE_STRING),
                                     'description': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI,
-                                                            nullable=True),
-                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING,
-                                                                 format=openapi.FORMAT_DATETIME),
+                                    'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
+                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                                 }
                             )
                         )
@@ -92,7 +87,6 @@ class EventListCreateViewSet(viewsets.ModelViewSet):
             'event': serializer.data,
             'other_events': other_serializer.data
         })
-
 
 class ServicesListCreateViewSet(viewsets.ModelViewSet):
     queryset = Services.objects.all().order_by('created_at')
@@ -153,12 +147,10 @@ class ServicesListCreateViewSet(viewsets.ModelViewSet):
             'other_services': other_serializer.data
         })
 
-
 class VacancyListCreateViewSet(viewsets.ModelViewSet):
     queryset = Vacancy.objects.all().order_by('created_at')
     serializer_class = VacancySerializer
     parser_classes = [MultiPartParser, FormParser]
-
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -166,14 +158,14 @@ class VacancyListCreateViewSet(viewsets.ModelViewSet):
         return [permissions.IsAdminUser()]
 
     @swagger_auto_schema(
-        operation_description="Получить детальную информацию о вакансиях и список других вакансий",
+        operation_description="Получить детальную информацию о вакансии и список других вакансий",
         responses={
             200: openapi.Response(
                 description="Детали вакансии и список других вакансий",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'service': openapi.Schema(
+                        'vacancy': openapi.Schema(
                             type=openapi.TYPE_OBJECT,
                             description='Текущая вакансия',
                             properties={
@@ -184,7 +176,7 @@ class VacancyListCreateViewSet(viewsets.ModelViewSet):
                                 'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
                             }
                         ),
-                        'other_services': openapi.Schema(
+                        'other_vacancies': openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             description='Список других вакансий',
                             items=openapi.Schema(
@@ -210,10 +202,9 @@ class VacancyListCreateViewSet(viewsets.ModelViewSet):
         other_vacancies = Vacancy.objects.exclude(id=instance.id).order_by('created_at')
         other_serializer = self.get_serializer(other_vacancies, many=True)
         return Response({
-            'service': serializer.data,
+            'vacancy': serializer.data,
             'other_vacancies': other_serializer.data
         })
-
 
 class ProjectListCreateViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all().order_by('created_at')
@@ -242,10 +233,10 @@ class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
         operation_description="Создать новую заявку с возможностью прикрепить файл",
         manual_parameters=[
             openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Имя', required=True),
-            openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Email', required=True),
+            openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Email (опционально)', required=False),
             openapi.Parameter('message', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Сообщение', required=True),
             openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, description='Прикрепленный файл (опционально)', required=False),
-            openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Номер телефона (начинается с +996)', required=False),
+            openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Номер телефона (начинается с +996, обязателен)', required=True),
         ],
         responses={
             201: ContactSerializer,
@@ -259,11 +250,10 @@ class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
     def perform_create(self, serializer):
         contact = serializer.save()
         logger.info(f"Создана новая заявка: {contact}")
-        message = f"Новая заявка!\nИмя: {contact.name}\nEmail: {contact.email}\nСообщение: {contact.message}\nТелефон: {contact.phone or 'Не указан'}\nДата: {contact.created_at}"
+        message = f"Новая заявка!\nИмя: {contact.name}\nEmail: {contact.email or 'Не указан'}\nСообщение: {contact.message}\nТелефон: {contact.phone}\nДата: {contact.created_at}"
         file_path = contact.file.path if contact.file else None
         logger.info(f"Отправка уведомления с файлом: {file_path}")
         send_telegram_notification.delay(message, file_path)
-
 
 class YouTubeShortListCreateViewSet(viewsets.ModelViewSet):
     queryset = YouTubeShort.objects.all().order_by('created_at')
@@ -291,7 +281,6 @@ class YouTubeShortListCreateViewSet(viewsets.ModelViewSet):
         logger.info(f"Получен POST-запрос на /api/youtube-shorts/ с данными: {request.data}")
         return super().create(request, *args, **kwargs)
 
-
 class ReviewListCreateView(generics.ListCreateAPIView):
     queryset = Review.objects.all().order_by('created_at')
     serializer_class = ReviewSerializer
@@ -299,6 +288,34 @@ class ReviewListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+class GalleryListCreateViewSet(viewsets.ModelViewSet):
+    queryset = Gallery.objects.all().order_by('created_at')
+    serializer_class = GallerySerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
+    @swagger_auto_schema(
+        operation_description="Создать новое изображение в галерее",
+        manual_parameters=[
+            openapi.Parameter('title', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Название изображения (опционально)', required=False),
+            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, description='Изображение', required=True),
+            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Описание (опционально)', required=False),
+            openapi.Parameter('related_service', openapi.IN_FORM, type=openapi.TYPE_INTEGER, description='ID услуги (опционально)', required=False),
+            openapi.Parameter('related_project', openapi.IN_FORM, type=openapi.TYPE_INTEGER, description='ID проекта (опционально)', required=False),
+        ],
+        responses={
+            201: GallerySerializer,
+            400: 'Ошибка валидации'
+        }
+    )
+    def create(self, request, *args, **kwargs):
+        logger.info(f"Получен POST-запрос на /api/gallery/ с данными: {request.data}")
+        return super().create(request, *args, **kwargs)
 
 class CustomTokenObtainView(APIView):
     @swagger_auto_schema(
@@ -325,7 +342,6 @@ class CustomTokenObtainView(APIView):
             token.set_exp(lifetime=timedelta(hours=lifetime_hours))
             return Response({'access': str(token)})
         return Response({'error': 'Invalid credentials'}, status=400)
-
 
 class AboutViewSet(viewsets.ModelViewSet):
     queryset = About.objects.all().order_by('created_at')

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery
 import os
 
 class EventSerializer(serializers.ModelSerializer):
@@ -53,3 +53,8 @@ class AboutSerializer(serializers.ModelSerializer):
     class Meta:
         model = About
         fields = ['id' , 'title', 'image', 'description', 'created_at']
+
+class GallerySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Gallery
+        fields = ['id', 'title', 'image', 'description', 'related_service', 'related_project', 'created_at']
