@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
@@ -44,7 +45,7 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG')
 
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN')
@@ -145,15 +146,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+TIME_ZONE = 'Asia/Almaty'
 USE_I18N = True
-
 USE_TZ = True
 
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-STATIC_URL = 'static/'
+
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

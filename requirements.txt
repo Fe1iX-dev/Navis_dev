@@ -13,6 +13,7 @@ cron-descriptor==1.4.5
 Django==4.2.21
 django-celery-beat==2.8.0
 django-filter==25.1
+django-jazzmin==3.0.1
 django-redis==5.4.0
 django-timezone-field==7.1
 djangorestframework==3.16.0

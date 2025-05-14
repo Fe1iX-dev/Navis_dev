@@ -1,11 +1,16 @@
 from rest_framework import serializers
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery
-import os
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, Direction, EventImage
+
+class EventImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventImage
+        fields = ['id', 'image']
 
 class EventSerializer(serializers.ModelSerializer):
+    gallery = EventImageSerializer(many=True, read_only=True)
     class Meta:
         model = Event
-        fields = ['title', 'description', 'image']
+        fields = ['id', 'title', 'description', 'date', 'image', 'gallery', 'created_at']
 
 class ServicesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,27 +20,17 @@ class ServicesSerializer(serializers.ModelSerializer):
 class VacancySerializer(serializers.ModelSerializer):
     class Meta:
         model = Vacancy
-        fields = ['id', 'title', 'description', 'requirements', 'created_at']
+        fields = ['id', 'title', 'description', 'requirements', 'conditions', 'salary', 'is_active', 'created_at']
 
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ['id', 'title', 'description', 'image', 'created_at']
+        fields = ['id', 'title', 'description', 'image', 'link', 'created_at']
 
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
         fields = ['id', 'name', 'email', 'message', 'file', 'phone', 'created_at']
-
-    def validate_file(self, value):
-        if value:
-            ext = os.path.splitext(value.name)[1].lower()
-            forbidden_extensions = ['.json', '.py', '.sh']
-            if ext in forbidden_extensions:
-                raise serializers.ValidationError("Files with .json, .py, or .sh extensions are not allowed.")
-        return value
-
-    file = serializers.FileField(required=False, allow_empty_file=False)
 
 class ReviewSerializer(serializers.ModelSerializer):
     author = serializers.StringRelatedField(read_only=True)
@@ -43,18 +38,29 @@ class ReviewSerializer(serializers.ModelSerializer):
         model = Review
         fields = ['id', 'author', 'text', 'rating', 'created_at']
 
-
 class YouTubeShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = YouTubeShort
         fields = ['id', 'title', 'video_url', 'thumbnail', 'created_at']
 
+class TeamMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamMember
+        fields = ['id', 'name', 'position', 'photo', 'description', 'created_at']
+
 class AboutSerializer(serializers.ModelSerializer):
+    team_members = TeamMemberSerializer(many=True, read_only=True)
     class Meta:
         model = About
-        fields = ['id' , 'title', 'image', 'description', 'created_at']
+        fields = ['id', 'title', 'image', 'description', 'team_members', 'created_at']
 
 class GallerySerializer(serializers.ModelSerializer):
     class Meta:
         model = Gallery
         fields = ['id', 'title', 'image', 'description', 'related_service', 'related_project', 'created_at']
+
+
+class DirectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Direction
+        fields = ['id', 'name', 'slug', 'description', 'image', 'additional_content', 'created_at']
