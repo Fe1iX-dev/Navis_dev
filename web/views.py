@@ -12,8 +12,9 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
-from datetime import timedelta
+from datetime import timedelta, timezone
 from django.contrib.auth.models import User
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,11 @@ class VacancyListCreateViewSet(viewsets.ModelViewSet):
             'other_vacancies': other_serializer.data
         })
 
+class ActiveVacancyListView(generics.ListAPIView):
+    queryset = Vacancy.objects.filter(is_active=True)
+    serializer_class = VacancySerializer
+
+
 class ProjectListCreateViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all().order_by('created_at')
     serializer_class = ProjectSerializer
@@ -109,6 +115,22 @@ class ProjectListCreateViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         return [permissions.IsAdminUser()]
+
+class ProjectFilterView(generics.ListAPIView):
+    serializer_class = ProjectSerializer
+    filterset_fields = ['category', 'is_featured']
+
+    def get_queryset(self):
+        return Project.objects.all()
+
+
+class ProjectSearchView(generics.ListAPIView):
+    serializer_class = ProjectSerializer
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q', '')
+        return Project.objects.filter(title__icontains=query)
+
 
 class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
     queryset = Contact.objects.all().order_by('created_at')
@@ -262,14 +284,56 @@ class CustomTokenObtainView(APIView):
             return Response({'access': str(token)})
         return Response({'error': 'Invalid credentials'}, status=400)
 
-class AboutViewSet(viewsets.ModelViewSet):
-    queryset = About.objects.all().order_by('created_at')
-    serializer_class = AboutSerializer
-    parser_classes = [MultiPartParser, FormParser]
-    pagination_class = StandardResultsSetPagination
-    filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
+class AboutViewSet(viewsets.ModelViewSet):
+    queryset = About.objects.all()
+    serializer_class = AboutSerializer
+    http_method_names = ['get']  # Только для чтения
+
+    def list(self, request):
+        cached_data = cache.get('about_data')
+        if not cached_data:
+            instance = self.get_queryset().first()  # Предполагаем, что About - singleton
+            serializer = self.get_serializer(instance)
+            cache.set('about_data', serializer.data, timeout=3600)
+            return Response(serializer.data)
+        return Response(cached_data)
+
+
+class HomeAPIView(APIView):
+    @swagger_auto_schema(
+        operation_description="Данные для главной страницы",
+        responses={200: openapi.Response("Главная страница", schema=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "projects": ProjectSerializer(many=True),
+                "events": EventSerializer(many=True),
+                "reviews": ReviewSerializer(many=True),
+                "youtube_short": YouTubeShortSerializer()
+            }
+        ))}
+    )
+    def get(self, request):
+        data = {
+            "projects": ProjectSerializer(
+                Project.objects.filter(is_featured=True)[:3],
+                many=True,
+                context={'request': request}  # Для полных URL изображений
+            ).data,
+
+            "events": EventSerializer(
+                Event.objects.filter(date__gte=timezone.now()).order_by('date')[:2],
+                many=True
+            ).data,
+
+            "reviews": ReviewSerializer(
+                Review.objects.select_related('author').order_by('-created_at')[:3],
+                many=True
+            ).data,
+
+            "youtube_short": YouTubeShortSerializer(
+                YouTubeShort.objects.last()
+            ).data if YouTubeShort.objects.exists() else None
+        }
+
+        return Response(data)

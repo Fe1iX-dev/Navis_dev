@@ -1,29 +1,69 @@
+import os
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 import re
+import phonenumbers
+
 
 def validate_phone(value):
-    cleaned_value = re.sub(r'[^0-9]', '', value)
-    if len(cleaned_value) != 9:
-        raise ValidationError('Номер телефона должен содержать 9 цифр после кода страны (например, 708245676).')
-    if value.startswith('0'):
-        value = '+996' + cleaned_value[1:]
-    elif not value.startswith('+996'):
-        value = '+996' + cleaned_value
-    return value
+    cleaned_phone = re.sub(r'[^\d+]', '', value)
+
+    try:
+        parsed = phonenumbers.parse(cleaned_phone, None)
+
+        if not phonenumbers.is_valid_number(parsed) or parsed.country_code != 996:
+            raise ValidationError("Номер должен быть в формате +996 XXX XXX XXX")
+
+    except phonenumbers.phonenumberutil.NumberParseException:
+        raise ValidationError("Неверный формат номера. Используйте +996 XXX XXX XXX")
+
+def validate_file(value):
+    max_size = 5 * 1024 * 1024  # 5 МБ
+    disallowed_extensions = ('.json', '.py', '.js', '.sh', '.bat', '.cmd')
+
+    if value.size > max_size:
+        raise ValidationError(f'Размер файла не должен превышать 5 МБ! Текущий размер: {value.size / 1024 / 1024:.2f} МБ')
+
+    file_extension = os.path.splitext(value.name.lower())[1]
+    if file_extension in disallowed_extensions:
+        raise ValidationError('Недопустимый тип файла! Запрещены .json, .py, .js, .sh, .bat, .cmd.')
+
 
 class Contact(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(null=True, blank=True)
     message = models.TextField()
-    file = models.FileField(upload_to='contacts/', null=True, blank=True)
-    phone = models.CharField(max_length=13, validators=[validate_phone], null=False, blank=False)
+    file = models.FileField(upload_to='contacts/', null=True, blank=True, validators=[validate_file])
+    phone = models.CharField(max_length=20, validators=[validate_phone], null=False, blank=False)  # Увеличим max_length
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def save(self, *args, **kwargs):
+    def clean(self):
+        super().clean()
         if self.phone:
-            self.phone = validate_phone(self.phone)
+            cleaned_phone = re.sub(r'[^\d+]', '', self.phone)
+
+            if cleaned_phone.startswith('0'):
+                cleaned_phone = '+996' + cleaned_phone[1:]
+
+            elif cleaned_phone.startswith('996'):
+                cleaned_phone = '+' + cleaned_phone
+
+            elif len(cleaned_phone) == 9 and cleaned_phone.isdigit():
+                cleaned_phone = '+996' + cleaned_phone
+
+            try:
+                parsed = phonenumbers.parse(cleaned_phone, None)
+                if not phonenumbers.is_valid_number(parsed) or parsed.country_code != 996:
+                    raise ValidationError({'phone': "Номер должен быть в формате +996 XXX XXX XXX"})
+
+                self.phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+
+            except phonenumbers.phonenumberutil.NumberParseException:
+                raise ValidationError({'phone': "Неверный формат номера. Используйте +996 XXX XXX XXX"})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -81,11 +121,13 @@ class Project(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='projects/', null=True, blank=True)
-    link = models.URLField(blank=True)  # Новое поле
+    link = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_featured = models.BooleanField(default=False)
 
     def __str__(self):
         return self.title
+
 
 class Review(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -138,3 +180,7 @@ class Direction(models.Model):
 
     def __str__(self):
         return self.name
+
+class Comment(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    text = models.TextField()

@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     'django_filters',
     'web',
     'drf_yasg',
+    'celery',
 ]
 
 SIMPLE_JWT = {
@@ -42,7 +43,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 
-DEBUG = config('DEBUG')
+DEBUG = config('DEBUG', default=True, cast=bool)
 
 
 ALLOWED_HOSTS = ['*']

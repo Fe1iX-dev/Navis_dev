@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, Direction, EventImage
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, \
+    Direction, EventImage, Comment
+
 
 class EventImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -48,11 +50,17 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         model = TeamMember
         fields = ['id', 'name', 'position', 'photo', 'description', 'created_at']
 
+
 class AboutSerializer(serializers.ModelSerializer):
-    team_members = TeamMemberSerializer(many=True, read_only=True)
+    team_members = serializers.SerializerMethodField()
+
     class Meta:
         model = About
-        fields = ['id', 'title', 'image', 'description', 'team_members', 'created_at']
+        fields = ['title', 'image', 'description', 'team_members', 'created_at']
+
+    def get_team_members(self, obj):
+        return TeamMemberSerializer(obj.team_members.all(), many=True).data
+
 
 class GallerySerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,3 +72,22 @@ class DirectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Direction
         fields = ['id', 'name', 'slug', 'description', 'image', 'additional_content', 'created_at']
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    # Для отображения названия проекта вместо ID
+    project_title = serializers.CharField(source='project.title', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'project', 'project_title', 'text', 'created_at']
+        read_only_fields = ['created_at']
+        extra_kwargs = {
+            'project': {'write_only': True}  # Скрыть project в выводе
+        }
+
+    def validate_project(self, value):
+        """Проверка, что проект существует и активен"""
+        if not Project.objects.filter(id=value.id, is_active=True).exists():
+            raise serializers.ValidationError("Проект не найден или удален")
+        return value

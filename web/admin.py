@@ -69,7 +69,7 @@ class DirectionAdmin(admin.ModelAdmin):
 
 @admin.register(EventImage)
 class EventImageAdmin(admin.ModelAdmin):
-    list_display = ('event', 'get_created_at')  # Заменили created_at на get_created_at
+    list_display = ('event', 'get_created_at')
     list_filter = ('event',)
     search_fields = ('event__title',)
 
