@@ -1,22 +1,17 @@
-import os
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 import re
+import os
 import phonenumbers
 
 
 def validate_phone(value):
-    cleaned_phone = re.sub(r'[^\d+]', '', value)
+    pattern = r'^\+996\d{9}$'
+    if not re.fullmatch(pattern, value):
+        raise ValidationError("Номер должен быть в формате +996XXXXXXXXX (9 цифр после +996)")
 
-    try:
-        parsed = phonenumbers.parse(cleaned_phone, None)
-
-        if not phonenumbers.is_valid_number(parsed) or parsed.country_code != 996:
-            raise ValidationError("Номер должен быть в формате +996 XXX XXX XXX")
-
-    except phonenumbers.phonenumberutil.NumberParseException:
-        raise ValidationError("Неверный формат номера. Используйте +996 XXX XXX XXX")
 
 def validate_file(value):
     max_size = 5 * 1024 * 1024  # 5 МБ
@@ -109,9 +104,9 @@ class Vacancy(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     requirements = models.TextField()
-    conditions = models.TextField(blank=True)  # Новое поле
-    salary = models.CharField(max_length=255, blank=True)  # Новое поле
-    is_active = models.BooleanField(default=True)  # Новое поле
+    conditions = models.TextField(blank=True)
+    salary = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -130,13 +125,22 @@ class Project(models.Model):
 
 
 class Review(models.Model):
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    avatar = models.ImageField(upload_to='reviews/avatars/', null=True, blank=True)
     text = models.TextField()
-    rating = models.IntegerField()
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        default=1
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Review by {self.author.username}"
+        return f"Review by {self.author.username if self.author else 'Anonymous'}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+
 
 class About(models.Model):
     title = models.CharField(max_length=200)
@@ -170,16 +174,22 @@ class Gallery(models.Model):
         return f"Gallery Image - {self.title or 'No Title'}"
 
 
-class Direction(models.Model):
+class Tools(models.Model):
     name = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True)
-    description = models.TextField()
-    image = models.ImageField(upload_to='directions/')
+    image = models.ImageField(upload_to='tools/')
     additional_content = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+
+class ToolImage(models.Model):
+    tool = models.ForeignKey(Tools, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='tool_images/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for {self.tool.name}"
 
 class Comment(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)

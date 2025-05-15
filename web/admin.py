@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, Direction, EventImage
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, Tools, EventImage, ToolImage
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
@@ -35,7 +35,6 @@ class ContactAdmin(admin.ModelAdmin):
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ('author', 'rating', 'created_at')
     list_filter = ('created_at', 'rating')
-    search_fields = ('text', 'author__username')
 
 @admin.register(YouTubeShort)
 class YouTubeShortAdmin(admin.ModelAdmin):
@@ -61,11 +60,15 @@ class TeamMemberAdmin(admin.ModelAdmin):
     list_filter = ('created_at',)
     search_fields = ('name', 'position', 'description')
 
-@admin.register(Direction)
-class DirectionAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'created_at')
+@admin.register(Tools)
+class ToolsAdmin(admin.ModelAdmin):
+    list_display = ('name', 'image', 'additional_content')
     list_filter = ('created_at',)
-    search_fields = ('name', 'description')
+    search_fields = ('name', 'additional_content')
+
+@admin.register(ToolImage)
+class ToolImageAdmin(admin.ModelAdmin):
+    list_display = ('tool', 'created_at')
 
 @admin.register(EventImage)
 class EventImageAdmin(admin.ModelAdmin):

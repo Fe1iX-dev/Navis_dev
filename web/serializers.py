@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, \
-    Direction, EventImage, Comment
+    Tools, EventImage, Comment
 
 
 class EventImageSerializer(serializers.ModelSerializer):
@@ -38,7 +38,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     author = serializers.StringRelatedField(read_only=True)
     class Meta:
         model = Review
-        fields = ['id', 'author', 'text', 'rating', 'created_at']
+        fields = ['id', 'author', 'avatar', 'text', 'rating', 'created_at']
 
 class YouTubeShortSerializer(serializers.ModelSerializer):
     class Meta:
@@ -68,14 +68,13 @@ class GallerySerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'image', 'description', 'related_service', 'related_project', 'created_at']
 
 
-class DirectionSerializer(serializers.ModelSerializer):
+class ToolsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Direction
-        fields = ['id', 'name', 'slug', 'description', 'image', 'additional_content', 'created_at']
+        model = Tools
+        fields = ['id', 'name', 'image', 'additional_content', 'created_at']
 
 
 class CommentSerializer(serializers.ModelSerializer):
-    # Для отображения названия проекта вместо ID
     project_title = serializers.CharField(source='project.title', read_only=True)
 
     class Meta:
@@ -83,11 +82,10 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ['id', 'project', 'project_title', 'text', 'created_at']
         read_only_fields = ['created_at']
         extra_kwargs = {
-            'project': {'write_only': True}  # Скрыть project в выводе
+            'project': {'write_only': True}
         }
 
     def validate_project(self, value):
-        """Проверка, что проект существует и активен"""
         if not Project.objects.filter(id=value.id, is_active=True).exists():
             raise serializers.ValidationError("Проект не найден или удален")
         return value

@@ -3,7 +3,7 @@ from .views import (
     EventListCreateViewSet, ServicesListCreateViewSet, VacancyListCreateViewSet,
     ProjectListCreateViewSet, ContactCreateView, ReviewListCreateView,
     YouTubeShortListCreateViewSet, GalleryListCreateViewSet,
-    DirectionListCreateViewSet, CustomTokenObtainView, AboutViewSet
+    ToolsCreateViewSet, CustomTokenObtainView, AboutViewSet
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_yasg.views import get_schema_view
@@ -31,7 +31,7 @@ router.register(r'vacancies', VacancyListCreateViewSet, basename='vacancies')
 router.register(r'projects', ProjectListCreateViewSet, basename='projects')
 router.register(r'youtube-shorts', YouTubeShortListCreateViewSet, basename='youtube-shorts')
 router.register(r'gallery', GalleryListCreateViewSet, basename='gallery')
-router.register(r'directions', DirectionListCreateViewSet, basename='directions')
+router.register(r'tools', ToolsCreateViewSet, basename='tools')
 router.register(r'about', AboutViewSet, basename='about')
 
 urlpatterns = [

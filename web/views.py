@@ -5,8 +5,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, Direction, EventImage
-from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer, TeamMemberSerializer, DirectionSerializer, EventImageSerializer
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, Tools, EventImage
+from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer, TeamMemberSerializer, ToolsSerializer, EventImageSerializer
 from .utils import send_telegram_notification
 import logging
 from rest_framework.views import APIView
@@ -209,6 +209,7 @@ class ReviewListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+
 class GalleryListCreateViewSet(viewsets.ModelViewSet):
     queryset = Gallery.objects.all().order_by('created_at')
     serializer_class = GallerySerializer
@@ -240,9 +241,9 @@ class GalleryListCreateViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
 
-class DirectionListCreateViewSet(viewsets.ModelViewSet):
-    queryset = Direction.objects.all().order_by('created_at')
-    serializer_class = DirectionSerializer
+class ToolsCreateViewSet(viewsets.ModelViewSet):
+    queryset = Tools.objects.all().order_by('created_at')
+    serializer_class = ToolsSerializer
     parser_classes = [MultiPartParser, FormParser]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -286,19 +287,14 @@ class CustomTokenObtainView(APIView):
 
 
 class AboutViewSet(viewsets.ModelViewSet):
-    queryset = About.objects.all()
+    queryset = About.objects.all().order_by('created_at')
     serializer_class = AboutSerializer
-    http_method_names = ['get']  # Только для чтения
+    parser_classes = [MultiPartParser, FormParser]
 
-    def list(self, request):
-        cached_data = cache.get('about_data')
-        if not cached_data:
-            instance = self.get_queryset().first()  # Предполагаем, что About - singleton
-            serializer = self.get_serializer(instance)
-            cache.set('about_data', serializer.data, timeout=3600)
-            return Response(serializer.data)
-        return Response(cached_data)
-
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
 
 class HomeAPIView(APIView):
     @swagger_auto_schema(
