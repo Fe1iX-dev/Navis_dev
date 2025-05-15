@@ -331,5 +331,4 @@ class HomeAPIView(APIView):
                 YouTubeShort.objects.last()
             ).data if YouTubeShort.objects.exists() else None
         }
-
         return Response(data)
