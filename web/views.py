@@ -1,120 +1,102 @@
-from django_filters import FilterSet, filters
-from rest_framework import generics, permissions, mixins, viewsets
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import generics, mixins
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.pagination import PageNumberPagination
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, TeamMember, Tools, EventImage
-from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer, TeamMemberSerializer, ToolsSerializer, EventImageSerializer
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, Tools
+from .serializers import ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer, ToolsSerializer
 from .utils import send_telegram_notification
-import logging
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
 from datetime import timedelta, timezone
 from django.contrib.auth.models import User
-from django.core.cache import cache
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions
+from django.shortcuts import get_object_or_404
+from .models import Event
+from .serializers import EventSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.pagination import PageNumberPagination
+import logging
+
 
 logger = logging.getLogger(__name__)
 
-class EventFilter(FilterSet):
-    date = filters.DateTimeFilter(field_name='date', lookup_expr='gte')
-    class Meta:
-        model = Event
-        fields = ['date']
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-class EventListCreateViewSet(viewsets.ModelViewSet):
+class EventDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, pk):
+        logger.info(f"Получен GET-запрос на /api/events/{pk}/")
+        event = get_object_or_404(Event, pk=pk)
+        serializer = EventSerializer(event)
+        return Response(serializer.data)
+
+class EventListAPIView(generics.ListAPIView):
     queryset = Event.objects.all().order_by('created_at')
     serializer_class = EventSerializer
-    filterset_class = EventFilter
-    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
 
-    def retrieve(self, request, *args, **kwargs):
-        logger.info(f"Получен GET-запрос на /api/events/{kwargs['pk']}/")
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        other_events = Event.objects.exclude(id=instance.id).order_by('created_at')
-        other_serializer = self.get_serializer(other_events, many=True)
-        return Response({
-            'event': serializer.data,
-            'other_events': other_serializer.data
-        })
+class ServicesDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-class ServicesListCreateViewSet(viewsets.ModelViewSet):
+    def get(self, request, pk):
+        logger.info(f"Получен GET-запрос на /api/services/{pk}/")
+        service = get_object_or_404(Services, pk=pk)
+        serializer = ServicesSerializer(service)
+        return Response(serializer.data)
+
+
+class ServicesListAPIView(generics.ListAPIView):
     queryset = Services.objects.all().order_by('created_at')
     serializer_class = ServicesSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
 
-    def retrieve(self, request, *args, **kwargs):
-        logger.info(f"Получен GET-запрос на /api/services/{kwargs['pk']}/")
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        other_services = Services.objects.exclude(id=instance.id).order_by('created_at')
-        other_serializer = self.get_serializer(other_services, many=True)
-        return Response({
-            'service': serializer.data,
-            'other_services': other_serializer.data
-        })
+class VacancyDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-class VacancyListCreateViewSet(viewsets.ModelViewSet):
+    def get(self, request, pk):
+        logger.info(f"Получен GET-запрос на /api/vacancies/{pk}/")
+        vacancy = get_object_or_404(Vacancy, pk=pk)
+        serializer = VacancySerializer(vacancy)
+        return Response(serializer.data)
+
+
+class VacancyListAPIView(generics.ListAPIView):
     queryset = Vacancy.objects.all().order_by('created_at')
     serializer_class = VacancySerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
 
-    def retrieve(self, request, *args, **kwargs):
-        logger.info(f"Получен GET-запрос на /api/vacancies/{kwargs['pk']}/")
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        other_vacancies = Vacancy.objects.exclude(id=instance.id).order_by('created_at')
-        other_serializer = self.get_serializer(other_vacancies, many=True)
-        return Response({
-            'vacancy': serializer.data,
-            'other_vacancies': other_serializer.data
-        })
+class ProjectDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-class ActiveVacancyListView(generics.ListAPIView):
-    queryset = Vacancy.objects.filter(is_active=True)
-    serializer_class = VacancySerializer
+    def get(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        serializer = ProjectSerializer(project)
+        return Response(serializer.data)
 
 
-class ProjectListCreateViewSet(viewsets.ModelViewSet):
+class ProjectListAPIView(generics.ListAPIView):
     queryset = Project.objects.all().order_by('created_at')
     serializer_class = ProjectSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
 
 class ProjectFilterView(generics.ListAPIView):
     serializer_class = ProjectSerializer
@@ -172,33 +154,13 @@ class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
         logger.info(f"Отправка уведомления с файлом: {file_path}")
         send_telegram_notification.delay(message, file_path)
 
-class YouTubeShortListCreateViewSet(viewsets.ModelViewSet):
+class YouTubeShortListAPIView(generics.ListAPIView):
     queryset = YouTubeShort.objects.all().order_by('created_at')
     serializer_class = YouTubeShortSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
-
-    @swagger_auto_schema(
-        operation_description="Создать новый YouTube Short с миниатюрой",
-        manual_parameters=[
-            openapi.Parameter('title', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Название', required=True),
-            openapi.Parameter('video_url', openapi.IN_FORM, type=openapi.TYPE_STRING, description='URL видео', required=True),
-            openapi.Parameter('thumbnail', openapi.IN_FORM, type=openapi.TYPE_FILE, description='Миниатюра (опционально)', required=False),
-        ],
-        responses={
-            201: YouTubeShortSerializer,
-            400: 'Ошибка валидации'
-        }
-    )
-    def create(self, request, *args, **kwargs):
-        logger.info(f"Получен POST-запрос на /api/youtube-shorts/ с данными: {request.data}")
-        return super().create(request, *args, **kwargs)
 
 class ReviewListCreateView(generics.ListCreateAPIView):
     queryset = Review.objects.all().order_by('created_at')
@@ -210,54 +172,29 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         serializer.save(author=self.request.user)
 
 
-class GalleryListCreateViewSet(viewsets.ModelViewSet):
+class GalleryListAPIView(generics.ListAPIView):
     queryset = Gallery.objects.all().order_by('created_at')
     serializer_class = GallerySerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
+class ToolsDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-    @swagger_auto_schema(
-        operation_description="Создать новое изображение в галерее",
-        manual_parameters=[
-            openapi.Parameter('title', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Название изображения (опционально)', required=False),
-            openapi.Parameter('image', openapi.IN_FORM, type=openapi.TYPE_FILE, description='Изображение', required=True),
-            openapi.Parameter('description', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Описание (опционально)', required=False),
-            openapi.Parameter('related_service', openapi.IN_FORM, type=openapi.TYPE_INTEGER, description='ID услуги (опционально)', required=False),
-            openapi.Parameter('related_project', openapi.IN_FORM, type=openapi.TYPE_INTEGER, description='ID проекта (опционально)', required=False),
-        ],
-        responses={
-            201: GallerySerializer,
-            400: 'Ошибка валидации'
-        }
-    )
-    def create(self, request, *args, **kwargs):
-        logger.info(f"Получен POST-запрос на /api/gallery/ с данными: {request.data}")
-        return super().create(request, *args, **kwargs)
+    def get(self, request, slug):
+        logger.info(f"Получен GET-запрос на /api/directions/{slug}/")
+        tool = get_object_or_404(Tools, slug=slug)
+        serializer = ToolsSerializer(tool)
+        return Response(serializer.data)
 
-
-class ToolsCreateViewSet(viewsets.ModelViewSet):
+class ToolsListAPIView(generics.ListAPIView):
     queryset = Tools.objects.all().order_by('created_at')
     serializer_class = ToolsSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
-
-    def retrieve(self, request, *args, **kwargs):
-        logger.info(f"Получен GET-запрос на /api/directions/{kwargs['slug']}/")
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
 
 class CustomTokenObtainView(APIView):
     @swagger_auto_schema(
@@ -286,49 +223,8 @@ class CustomTokenObtainView(APIView):
         return Response({'error': 'Invalid credentials'}, status=400)
 
 
-class AboutViewSet(viewsets.ModelViewSet):
+class AboutListAPIView(generics.ListAPIView):
     queryset = About.objects.all().order_by('created_at')
     serializer_class = AboutSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
-
-class HomeAPIView(APIView):
-    @swagger_auto_schema(
-        operation_description="Данные для главной страницы",
-        responses={200: openapi.Response("Главная страница", schema=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "projects": ProjectSerializer(many=True),
-                "events": EventSerializer(many=True),
-                "reviews": ReviewSerializer(many=True),
-                "youtube_short": YouTubeShortSerializer()
-            }
-        ))}
-    )
-    def get(self, request):
-        data = {
-            "projects": ProjectSerializer(
-                Project.objects.filter(is_featured=True)[:3],
-                many=True,
-                context={'request': request}  # Для полных URL изображений
-            ).data,
-
-            "events": EventSerializer(
-                Event.objects.filter(date__gte=timezone.now()).order_by('date')[:2],
-                many=True
-            ).data,
-
-            "reviews": ReviewSerializer(
-                Review.objects.select_related('author').order_by('-created_at')[:3],
-                many=True
-            ).data,
-
-            "youtube_short": YouTubeShortSerializer(
-                YouTubeShort.objects.last()
-            ).data if YouTubeShort.objects.exists() else None
-        }
-        return Response(data)

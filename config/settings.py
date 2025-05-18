@@ -17,6 +17,8 @@ INSTALLED_APPS = [
     'web',
     'drf_yasg',
     'celery',
+    'ckeditor',
+    'ckeditor_uploader',
 ]
 
 SIMPLE_JWT = {
@@ -116,6 +118,15 @@ CELERY_RESULT_SERIALIZER = 'json'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
 
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': 'Full',
+        'height': 300,
+        'width': '100%',
+        'extraPlugins': ','.join(['uploadimage']),
+    },
+}
 
 SWAGGER_SETTINGS = {
     'DEFAULT_INFO': 'web.urls.swagger_info',
@@ -146,7 +157,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru-ru'
 TIME_ZONE = 'Asia/Almaty'
 USE_I18N = True
 USE_TZ = True
