@@ -1,234 +1,124 @@
-from requests import Response
-from rest_framework import generics, permissions, mixins, viewsets
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import generics, mixins
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django_filters import FilterSet, filters
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About
-from .serializers import EventSerializer, ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, Tools
+from .serializers import ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer, ToolsSerializer
 from .utils import send_telegram_notification
-import logging
+from rest_framework_simplejwt.tokens import AccessToken
+from datetime import timedelta, timezone
+from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import AccessToken
-from datetime import timedelta
-from django.contrib.auth.models import User
+from rest_framework import permissions
+from django.shortcuts import get_object_or_404
+from .models import Event
+from .serializers import EventSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.pagination import PageNumberPagination
+import logging
+
 
 logger = logging.getLogger(__name__)
 
-class EventFilter(FilterSet):
-    date = filters.DateTimeFilter(field_name='date', lookup_expr='gte')
-    class Meta:
-        model = Event
-        fields = ['date']
 
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
-class EventListCreateViewSet(viewsets.ModelViewSet):
+class EventDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, pk):
+        logger.info(f"Получен GET-запрос на /api/events/{pk}/")
+        event = get_object_or_404(Event, pk=pk)
+        serializer = EventSerializer(event)
+        return Response(serializer.data)
+
+class EventListAPIView(generics.ListAPIView):
     queryset = Event.objects.all().order_by('created_at')
     serializer_class = EventSerializer
-    filterset_class = EventFilter
-    parser_classes = (MultiPartParser, FormParser)
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
-
-    @swagger_auto_schema(
-        request_body=EventSerializer,
-        responses={201: EventSerializer()}
-    )
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
-
-    @swagger_auto_schema(
-        operation_description="Получить информацию о мероприятии и список других мероприятий",
-        responses={
-            200: openapi.Response(
-                description="Детали Мероприятия и список других Мероприятий",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'service': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            description='Текущее мероприятие',
-                            properties={
-                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'title': openapi.Schema(type=openapi.TYPE_STRING),
-                                'description': openapi.Schema(type=openapi.TYPE_STRING),
-                                'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI,
-                                                        nullable=True),
-                                'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
-                            }
-                        ),
-                        'other_events': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            description='Список других мероприятий',
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                    'title': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'description': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI,
-                                                            nullable=True),
-                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING,
-                                                                 format=openapi.FORMAT_DATETIME),
-                                }
-                            )
-                        )
-                    }
-                )
-            )
-        }
-    )
-    def retrieve(self, request, *args, **kwargs):
-        logger.info(f"Получен GET-запрос на /api/events/{kwargs['pk']}/")
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        other_events = Event.objects.exclude(id=instance.id).order_by('created_at')
-        other_serializer = self.get_serializer(other_events, many=True)
-        return Response({
-            'event': serializer.data,
-            'other_events': other_serializer.data
-        })
+    permission_classes = [permissions.AllowAny]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
 
 
-class ServicesListCreateViewSet(viewsets.ModelViewSet):
+class ServicesDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        logger.info(f"Получен GET-запрос на /api/services/{pk}/")
+        service = get_object_or_404(Services, pk=pk)
+        serializer = ServicesSerializer(service)
+        return Response(serializer.data)
+
+
+class ServicesListAPIView(generics.ListAPIView):
     queryset = Services.objects.all().order_by('created_at')
     serializer_class = ServicesSerializer
-    parser_classes = [MultiPartParser, FormParser]
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
-
-    @swagger_auto_schema(
-        operation_description="Получить детальную информацию об услуге и список других услуг",
-        responses={
-            200: openapi.Response(
-                description="Детали услуги и список других услуг",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'service': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            description='Текущая услуга',
-                            properties={
-                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'title': openapi.Schema(type=openapi.TYPE_STRING),
-                                'content': openapi.Schema(type=openapi.TYPE_STRING),
-                                'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
-                                'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
-                            }
-                        ),
-                        'other_services': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            description='Список других услуг',
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                    'title': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'content': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'image': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
-                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
-                                }
-                            )
-                        )
-                    }
-                )
-            )
-        }
-    )
-    def retrieve(self, request, *args, **kwargs):
-        logger.info(f"Получен GET-запрос на /api/services/{kwargs['pk']}/")
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        other_services = Services.objects.exclude(id=instance.id).order_by('created_at')
-        other_serializer = self.get_serializer(other_services, many=True)
-        return Response({
-            'service': serializer.data,
-            'other_services': other_serializer.data
-        })
+    permission_classes = [permissions.AllowAny]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
 
 
-class VacancyListCreateViewSet(viewsets.ModelViewSet):
+class VacancyDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        logger.info(f"Получен GET-запрос на /api/vacancies/{pk}/")
+        vacancy = get_object_or_404(Vacancy, pk=pk)
+        serializer = VacancySerializer(vacancy)
+        return Response(serializer.data)
+
+
+class VacancyListAPIView(generics.ListAPIView):
     queryset = Vacancy.objects.all().order_by('created_at')
     serializer_class = VacancySerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
 
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
+class ProjectDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-    @swagger_auto_schema(
-        operation_description="Получить детальную информацию о вакансиях и список других вакансий",
-        responses={
-            200: openapi.Response(
-                description="Детали вакансии и список других вакансий",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'service': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            description='Текущая вакансия',
-                            properties={
-                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'title': openapi.Schema(type=openapi.TYPE_STRING),
-                                'description': openapi.Schema(type=openapi.TYPE_STRING),
-                                'requirements': openapi.Schema(type=openapi.TYPE_STRING),
-                                'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
-                            }
-                        ),
-                        'other_services': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            description='Список других вакансий',
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                    'title': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'description': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'requirements': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
-                                }
-                            )
-                        )
-                    }
-                )
-            )
-        }
-    )
-    def retrieve(self, request, *args, **kwargs):
-        logger.info(f"Получен GET-запрос на /api/vacancies/{kwargs['pk']}/")
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        other_vacancies = Vacancy.objects.exclude(id=instance.id).order_by('created_at')
-        other_serializer = self.get_serializer(other_vacancies, many=True)
-        return Response({
-            'service': serializer.data,
-            'other_vacancies': other_serializer.data
-        })
+    def get(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        serializer = ProjectSerializer(project)
+        return Response(serializer.data)
 
 
-class ProjectListCreateViewSet(viewsets.ModelViewSet):
+class ProjectListAPIView(generics.ListAPIView):
     queryset = Project.objects.all().order_by('created_at')
     serializer_class = ProjectSerializer
+    permission_classes = [permissions.AllowAny]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
+
+class ProjectFilterView(generics.ListAPIView):
+    serializer_class = ProjectSerializer
+    filterset_fields = ['category', 'is_featured']
+
+    def get_queryset(self):
+        return Project.objects.all()
+
+
+class ProjectSearchView(generics.ListAPIView):
+    serializer_class = ProjectSerializer
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q', '')
+        return Project.objects.filter(title__icontains=query)
 
 
 class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
     queryset = Contact.objects.all().order_by('created_at')
     serializer_class = ContactSerializer
     parser_classes = [MultiPartParser, FormParser]
+    pagination_class = StandardResultsSetPagination
 
     @swagger_auto_schema(
         operation_description="Получить список всех заявок",
@@ -242,10 +132,10 @@ class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
         operation_description="Создать новую заявку с возможностью прикрепить файл",
         manual_parameters=[
             openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Имя', required=True),
-            openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Email', required=True),
+            openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Email (опционально)', required=False),
             openapi.Parameter('message', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Сообщение', required=True),
             openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, description='Прикрепленный файл (опционально)', required=False),
-            openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Номер телефона (начинается с +996)', required=False),
+            openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Номер телефона (начинается с +996, обязателен)', required=True),
         ],
         responses={
             201: ContactSerializer,
@@ -259,46 +149,52 @@ class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
     def perform_create(self, serializer):
         contact = serializer.save()
         logger.info(f"Создана новая заявка: {contact}")
-        message = f"Новая заявка!\nИмя: {contact.name}\nEmail: {contact.email}\nСообщение: {contact.message}\nТелефон: {contact.phone or 'Не указан'}\nДата: {contact.created_at}"
+        message = f"Новая заявка!\nИмя: {contact.name}\nEmail: {contact.email or 'Не указан'}\nСообщение: {contact.message}\nТелефон: {contact.phone}\nДата: {contact.created_at}"
         file_path = contact.file.path if contact.file else None
         logger.info(f"Отправка уведомления с файлом: {file_path}")
         send_telegram_notification.delay(message, file_path)
 
-
-class YouTubeShortListCreateViewSet(viewsets.ModelViewSet):
+class YouTubeShortListAPIView(generics.ListAPIView):
     queryset = YouTubeShort.objects.all().order_by('created_at')
     serializer_class = YouTubeShortSerializer
-    parser_classes = [MultiPartParser, FormParser]
-
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]
-
-    @swagger_auto_schema(
-        operation_description="Создать новый YouTube Short с миниатюрой",
-        manual_parameters=[
-            openapi.Parameter('title', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Название', required=True),
-            openapi.Parameter('video_url', openapi.IN_FORM, type=openapi.TYPE_STRING, description='URL видео', required=True),
-            openapi.Parameter('thumbnail', openapi.IN_FORM, type=openapi.TYPE_FILE, description='Миниатюра (опционально)', required=False),
-        ],
-        responses={
-            201: YouTubeShortSerializer,
-            400: 'Ошибка валидации'
-        }
-    )
-    def create(self, request, *args, **kwargs):
-        logger.info(f"Получен POST-запрос на /api/youtube-shorts/ с данными: {request.data}")
-        return super().create(request, *args, **kwargs)
+    permission_classes = [permissions.AllowAny]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
 
 
 class ReviewListCreateView(generics.ListCreateAPIView):
     queryset = Review.objects.all().order_by('created_at')
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+
+class GalleryListAPIView(generics.ListAPIView):
+    queryset = Gallery.objects.all().order_by('created_at')
+    serializer_class = GallerySerializer
+    permission_classes = [permissions.AllowAny]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
+
+class ToolsDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, slug):
+        logger.info(f"Получен GET-запрос на /api/directions/{slug}/")
+        tool = get_object_or_404(Tools, slug=slug)
+        serializer = ToolsSerializer(tool)
+        return Response(serializer.data)
+
+class ToolsListAPIView(generics.ListAPIView):
+    queryset = Tools.objects.all().order_by('created_at')
+    serializer_class = ToolsSerializer
+    permission_classes = [permissions.AllowAny]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend]
+
 
 class CustomTokenObtainView(APIView):
     @swagger_auto_schema(
@@ -327,12 +223,8 @@ class CustomTokenObtainView(APIView):
         return Response({'error': 'Invalid credentials'}, status=400)
 
 
-class AboutViewSet(viewsets.ModelViewSet):
+class AboutListAPIView(generics.ListAPIView):
     queryset = About.objects.all().order_by('created_at')
     serializer_class = AboutSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAdminUser()]

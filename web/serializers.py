@@ -1,55 +1,67 @@
 from rest_framework import serializers
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About
-import os
+from .models import (
+    Event, Services, Vacancy, Project, Contact,
+    Review, YouTubeShort, About, Gallery, Tools
+)
+
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ['title', 'description', 'image']
+        fields = '__all__'
+
 
 class ServicesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Services
-        fields = ['id', 'title', 'content', 'image', 'created_at']
+        fields = '__all__'
+
 
 class VacancySerializer(serializers.ModelSerializer):
     class Meta:
         model = Vacancy
-        fields = ['id', 'title', 'description', 'requirements', 'created_at']
+        fields = '__all__'
+
 
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ['id', 'title', 'description', 'image', 'created_at']
+        fields = '__all__'
+
 
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ['id', 'name', 'email', 'message', 'file', 'phone', 'created_at']
+        fields = '__all__'
 
-    def validate_file(self, value):
-        if value:
-            ext = os.path.splitext(value.name)[1].lower()
-            forbidden_extensions = ['.json', '.py', '.sh']
-            if ext in forbidden_extensions:
-                raise serializers.ValidationError("Files with .json, .py, or .sh extensions are not allowed.")
-        return value
-
-    file = serializers.FileField(required=False, allow_empty_file=False)
 
 class ReviewSerializer(serializers.ModelSerializer):
-    author = serializers.StringRelatedField(read_only=True)
     class Meta:
         model = Review
-        fields = ['id', 'author', 'text', 'rating', 'created_at']
+        fields = '__all__'
 
 
 class YouTubeShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = YouTubeShort
-        fields = ['id', 'title', 'video_url', 'thumbnail', 'created_at']
+        fields = '__all__'
+
 
 class AboutSerializer(serializers.ModelSerializer):
     class Meta:
         model = About
-        fields = ['id' , 'title', 'image', 'description', 'created_at']
+        fields = '__all__'
+
+
+class GallerySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Gallery
+        fields = '__all__'
+
+
+class ToolsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tools
+        fields = '__all__'
+
+
