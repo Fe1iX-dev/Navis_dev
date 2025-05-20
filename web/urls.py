@@ -7,9 +7,8 @@ from .views import (
     ContactCreateView, ReviewListCreateView,
     YouTubeShortListAPIView, GalleryListAPIView,
     ToolsListAPIView, ToolsDetailAPIView,
-    AboutListAPIView, CustomTokenObtainView
+    AboutListAPIView, ContactVacancyCreateView
 )
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -47,6 +46,7 @@ urlpatterns = [
     path('projects/search/', ProjectSearchView.as_view(), name='project_search'),
 
     path('contacts/', ContactCreateView.as_view(), name='contact_create'),
+    path('contact_vacancy/', ContactVacancyCreateView.as_view(), name='contact_vacancy_create'),
 
     path('reviews/', ReviewListCreateView.as_view(), name='review_list_create'),
 
@@ -58,10 +58,6 @@ urlpatterns = [
     path('tools/<slug:slug>/', ToolsDetailAPIView.as_view(), name='tools_detail'),
 
     path('about/', AboutListAPIView.as_view(), name='about_list'),
-
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('custom-token/', CustomTokenObtainView.as_view(), name='custom_token'),
 
     path('ckeditor/', include('ckeditor_uploader.urls')),
 

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Event, Services, Vacancy, Project, Contact,
-    Review, YouTubeShort, About, Gallery, Tools
+    Review, YouTubeShort, About, Gallery, Tools, ContactVacancy
 )
 
 
@@ -62,6 +62,12 @@ class GallerySerializer(serializers.ModelSerializer):
 class ToolsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tools
+        fields = '__all__'
+
+
+class ContactVacancySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactVacancy
         fields = '__all__'
 
 

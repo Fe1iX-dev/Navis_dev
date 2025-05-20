@@ -1,12 +1,9 @@
 from rest_framework import generics, mixins
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, Tools
-from .serializers import ServicesSerializer, VacancySerializer, ProjectSerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer, ToolsSerializer
+from .models import Event, Services, Vacancy, Project, Contact, Review, YouTubeShort, About, Gallery, Tools, ContactVacancy
+from .serializers import ServicesSerializer, VacancySerializer, ProjectSerializer, ContactVacancySerializer, ContactSerializer, ReviewSerializer, YouTubeShortSerializer, AboutSerializer, GallerySerializer, ToolsSerializer
 from .utils import send_telegram_notification
-from rest_framework_simplejwt.tokens import AccessToken
-from datetime import timedelta, timezone
-from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions
@@ -148,10 +145,10 @@ class ContactCreateView(mixins.ListModelMixin, generics.CreateAPIView):
 
     def perform_create(self, serializer):
         contact = serializer.save()
-        logger.info(f"Создана новая заявка: {contact}")
-        message = f"Новая заявка!\nИмя: {contact.name}\nEmail: {contact.email or 'Не указан'}\nСообщение: {contact.message}\nТелефон: {contact.phone}\nДата: {contact.created_at}"
+        logger.info(f"Создана новая заявка: {contact} 🌟")
+        message = f"Новая заявка на консультацию! 🎉\nИмя: {contact.name} 😊\nEmail: {contact.email or 'Не указан'} 📧\nСообщение: {contact.message} 💬\nТелефон: {contact.phone} 📞\nДата: {contact.created_at} 🕒"
         file_path = contact.file.path if contact.file else None
-        logger.info(f"Отправка уведомления с файлом: {file_path}")
+        logger.info(f"Отправка уведомления с файлом: {file_path} 📤")
         send_telegram_notification.delay(message, file_path)
 
 class YouTubeShortListAPIView(generics.ListAPIView):
@@ -165,11 +162,12 @@ class YouTubeShortListAPIView(generics.ListAPIView):
 class ReviewListCreateView(generics.ListCreateAPIView):
     queryset = Review.objects.all().order_by('created_at')
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     pagination_class = StandardResultsSetPagination
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        user = self.request.user if self.request.user.is_authenticated else None
+        serializer.save(author=user)
 
 
 class GalleryListAPIView(generics.ListAPIView):
@@ -196,35 +194,56 @@ class ToolsListAPIView(generics.ListAPIView):
     filter_backends = [DjangoFilterBackend]
 
 
-class CustomTokenObtainView(APIView):
-    @swagger_auto_schema(
-        operation_description="Получить Access-токен с настраиваемым временем жизни",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'username': openapi.Schema(type=openapi.TYPE_STRING, description='Имя пользователя'),
-                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Пароль'),
-                'lifetime_hours': openapi.Schema(type=openapi.TYPE_INTEGER, description='Время жизни токена в часах', default=24),
-            },
-            required=['username', 'password']
-        ),
-        responses={200: openapi.Schema(type=openapi.TYPE_OBJECT, properties={'access': openapi.Schema(type=openapi.TYPE_STRING)})}
-    )
-    def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        lifetime_hours = int(request.data.get('lifetime_hours', 24))
-
-        user = User.objects.filter(username=username).first()
-        if user and user.check_password(password):
-            token = AccessToken.for_user(user)
-            token.set_exp(lifetime=timedelta(hours=lifetime_hours))
-            return Response({'access': str(token)})
-        return Response({'error': 'Invalid credentials'}, status=400)
-
-
 class AboutListAPIView(generics.ListAPIView):
     queryset = About.objects.all().order_by('created_at')
     serializer_class = AboutSerializer
     permission_classes = [permissions.AllowAny]
 
+
+
+class ContactVacancyCreateView(mixins.ListModelMixin, generics.CreateAPIView):
+    queryset = ContactVacancy.objects.all().order_by('created_at')
+    serializer_class = ContactVacancySerializer
+    parser_classes = [MultiPartParser, FormParser]
+    pagination_class = StandardResultsSetPagination
+
+    @swagger_auto_schema(
+        operation_description="Получить список всех заявок",
+        responses={200: ContactSerializer(many=True)}
+    )
+    def get(self, request, *args, **kwargs):
+        logger.info("Получен GET-запрос на /api/contact_vacancy/")
+        return self.list(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_description="Создать новую заявку с возможностью прикрепить файл",
+        manual_parameters=[
+            openapi.Parameter('name', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Имя', required=True),
+            openapi.Parameter('email', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Email (опционально)', required=True),
+            openapi.Parameter(
+                name='link',
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description='Ссылка на соцсеть',
+                required=True,
+                format=openapi.FORMAT_URI
+            ),
+            openapi.Parameter('file', openapi.IN_FORM, type=openapi.TYPE_FILE, description='Прикрепленный файл (опционально)', required=False),
+            openapi.Parameter('phone', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Номер телефона (начинается с +996, обязателен)', required=True),
+        ],
+        responses={
+            201: ContactSerializer,
+            400: 'Ошибка валидации'
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        logger.info(f"Получен POST-запрос на /api/contact_vacancy/ с данными: {request.data}")
+        return super().post(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        contact = serializer.save()
+        logger.info(f"Создана новая заявка: {contact} ✨")
+        message = f"Новая заявка на вакансию! 🚀\nИмя: {contact.name} 😊\nEmail: {contact.email} 📧\nСсылка на соцсеть: {contact.link} 🔗\nТелефон: {contact.phone} 📞\nДата: {contact.created_at} 🕒"
+        file_path = contact.file.path if contact.file else None
+        logger.info(f"Отправка уведомления с файлом: {file_path} 📤")
+        send_telegram_notification.delay(message, file_path)

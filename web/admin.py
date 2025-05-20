@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Contact, YouTubeShort, Event, EventImage, Services, Vacancy,
-    Project, Review, About, Gallery, Tools, ToolImage
+    Project, Review, About, Gallery, Tools, ToolImage, ContactVacancy
 )
 
 
@@ -13,8 +13,8 @@ class ContactAdmin(admin.ModelAdmin):
 
 @admin.register(YouTubeShort)
 class YouTubeShortAdmin(admin.ModelAdmin):
-    list_display = ('title', 'video_url', 'created_at')
-    search_fields = ('title',)
+    list_display = ('video_url', 'created_at')
+    search_fields = ('created_at',)
 
 
 class EventImageInline(admin.TabularInline):
@@ -57,9 +57,8 @@ class ProjectAdmin(admin.ModelAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('author', 'rating', 'created_at')
+    list_display = ('author', 'created_at')
     search_fields = ('author__username', 'text')
-    list_filter = ('rating',)
 
 
 @admin.register(About)
@@ -84,3 +83,9 @@ class ToolsAdmin(admin.ModelAdmin):
 class ToolImageAdmin(admin.ModelAdmin):
     list_display = ('tool', 'created_at')
     search_fields = ('tool__name',)
+
+
+@admin.register(ContactVacancy)
+class ContactVacancyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'phone','link' ,'created_at')
+    search_fields = ('name', 'email', 'phone')

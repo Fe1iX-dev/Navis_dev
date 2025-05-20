@@ -1,4 +1,3 @@
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -27,12 +26,27 @@ def validate_file(value):
         raise ValidationError('Недопустимый тип файла! Запрещены .json, .py, .js, .sh, .bat, .cmd.')
 
 
+def normalize_kg_phone(phone: str) -> str:
+    cleaned = re.sub(r'[^\d+]', '', phone)
+
+    if cleaned.startswith('+996'):
+        return cleaned
+    elif cleaned.startswith('996'):
+        return '+' + cleaned
+    elif cleaned.startswith('0') and len(cleaned) >= 10:
+        return '+996' + cleaned[1:]
+    elif cleaned.startswith('7') and len(cleaned) == 9:
+        return '+996' + cleaned
+    else:
+        raise ValidationError("Неверный формат номера. Используйте +996 XXX XXX XXX")
+
+
 class Contact(models.Model):
     name = models.CharField(max_length=100)
-    email = models.EmailField(null=True, blank=True)
+    email = models.EmailField(null=False, blank=False)
     message = models.TextField()
     file = models.FileField(upload_to='contacts/', null=True, blank=True, validators=[validate_file])
-    phone = models.CharField(max_length=20, validators=[validate_phone], null=False, blank=False)  # Увеличим max_length
+    phone = models.CharField(max_length=20, validators=[], null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -42,26 +56,19 @@ class Contact(models.Model):
     def clean(self):
         super().clean()
         if self.phone:
-            cleaned_phone = re.sub(r'[^\d+]', '', self.phone)
-
-            if cleaned_phone.startswith('0'):
-                cleaned_phone = '+996' + cleaned_phone[1:]
-
-            elif cleaned_phone.startswith('996'):
-                cleaned_phone = '+' + cleaned_phone
-
-            elif len(cleaned_phone) == 9 and cleaned_phone.isdigit():
-                cleaned_phone = '+996' + cleaned_phone
-
             try:
-                parsed = phonenumbers.parse(cleaned_phone, None)
+                normalized_phone = normalize_kg_phone(self.phone)
+
+                parsed = phonenumbers.parse(normalized_phone, None)
                 if not phonenumbers.is_valid_number(parsed) or parsed.country_code != 996:
-                    raise ValidationError({'phone': "Номер должен быть в формате +996 XXX XXX XXX"})
+                    raise ValidationError({'phone': "Неверный кыргызский номер. Ожидается +996 XXX XXX XXX"})
 
                 self.phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
 
-            except phonenumbers.phonenumberutil.NumberParseException:
+            except phonenumbers.NumberParseException:
                 raise ValidationError({'phone': "Неверный формат номера. Используйте +996 XXX XXX XXX"})
+            except ValidationError as e:
+                raise e
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -71,8 +78,6 @@ class Contact(models.Model):
         return f"Message from {self.name}"
 
 class YouTubeShort(models.Model):
-    content = RichTextField(default='', blank=True)
-    title = models.CharField(max_length=200)
     video_url = models.URLField()
     thumbnail = models.ImageField(upload_to='youtube_shorts/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -164,10 +169,6 @@ class Review(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     avatar = models.ImageField(upload_to='reviews/avatars/', null=True, blank=True)
     text = models.TextField()
-    rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
-        default=1
-    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -234,4 +235,41 @@ class ToolImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.tool.name}"
+
+
+class ContactVacancy(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField(null=False, blank=False)
+    phone = models.CharField(max_length=20, validators=[], null=False, blank=False)
+    link = models.URLField(null=False, blank=False)
+    file = models.FileField(upload_to='contacts/vacancy/', null=True, blank=True, validators=[validate_file])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Заявка вакансии")
+        verbose_name_plural = _("Заявки вакансий")
+
+    def clean(self):
+        super().clean()
+        if self.phone:
+            try:
+                normalized_phone = normalize_kg_phone(self.phone)
+
+                parsed = phonenumbers.parse(normalized_phone, None)
+                if not phonenumbers.is_valid_number(parsed) or parsed.country_code != 996:
+                    raise ValidationError({'phone': "Неверный кыргызский номер. Ожидается +996 XXX XXX XXX"})
+
+                self.phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+
+            except phonenumbers.NumberParseException:
+                raise ValidationError({'phone': "Неверный формат номера. Используйте +996 XXX XXX XXX"})
+            except ValidationError as e:
+                raise e
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Message from {self.name}"
 
