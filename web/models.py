@@ -87,7 +87,7 @@ class YouTubeShort(models.Model):
         verbose_name_plural = _("Ютуб-Шортсы")
 
     def __str__(self):
-        return self.title
+        return self.video_url
 
 class Event(models.Model):
     content = RichTextField(default='', blank=True)
